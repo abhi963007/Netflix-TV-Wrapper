@@ -18,9 +18,9 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String NETFLIX_URL = "https://www.netflix.com";
 
-    // Chromebook UA — Desktop UI, but highly compatible with Android Widevine DRM
+    // Linux Desktop UA — passes "Update Required", avoids "Open in App"
     private static final String BROWSE_UA = 
-            "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36";
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -207,8 +207,13 @@ public class MainActivity extends AppCompatActivity {
         @android.webkit.JavascriptInterface
         public void playVideo(final String url) {
             runOnUiThread(() -> {
-                // Bridge disabled to keep playback in the main window
-                android.util.Log.d("NetflixBridge", "Trailers work! Staying in main window.");
+                String fullUrl = url;
+                if (url != null && !url.startsWith("http")) {
+                    if (url.startsWith("/")) fullUrl = "https://www.netflix.com" + url;
+                    else fullUrl = "https://www.netflix.com/" + url;
+                }
+                android.util.Log.d("NetflixBridge", "Launching VideoActivity with: " + fullUrl);
+                launchVideoPlayer(fullUrl);
             });
         }
     }
