@@ -1,13 +1,56 @@
 // =============================================
-// Netflix TV Wrapper — Browsing Mode Scripts
-// Playback is handled by Chrome Custom Tab
+// Netflix TV Wrapper — Hybrid Navigation Engine
+// Detects /watch/ URLs via pushState interception
+// and signals Android to open Chrome Custom Tab
 // =============================================
 
 // Fix screen size for proper layout
 Object.defineProperty(window.screen, 'width', { get: () => 1280 });
 Object.defineProperty(window.screen, 'height', { get: () => 720 });
 
+// -----------------------------------------------
+// HYBRID HANDOFF: Intercept pushState navigation
+// Netflix uses history.pushState for /watch/ URLs
+// so shouldOverrideUrlLoading never fires for them.
+// We patch pushState to detect this ourselves.
+// -----------------------------------------------
+(function() {
+    const originalPushState = history.pushState.bind(history);
+    history.pushState = function(state, title, url) {
+        originalPushState(state, title, url);
+        if (url && (url.includes('/watch/') || url.includes('watch?'))) {
+            const fullUrl = url.startsWith('http') ? url : 'https://www.netflix.com' + url;
+            // Signal Android via window.location change which triggers shouldOverrideUrlLoading
+            window.location.href = fullUrl;
+        }
+    };
+
+    const originalReplaceState = history.replaceState.bind(history);
+    history.replaceState = function(state, title, url) {
+        originalReplaceState(state, title, url);
+        if (url && (url.includes('/watch/') || url.includes('watch?'))) {
+            const fullUrl = url.startsWith('http') ? url : 'https://www.netflix.com' + url;
+            window.location.href = fullUrl;
+        }
+    };
+})();
+
+// Also catch any anchor clicks to /watch/ links
+document.addEventListener('click', function(e) {
+    const anchor = e.target.closest('a[href]');
+    if (anchor) {
+        const href = anchor.getAttribute('href');
+        if (href && (href.includes('/watch/') || href.includes('watch?'))) {
+            e.preventDefault();
+            const fullUrl = href.startsWith('http') ? href : 'https://www.netflix.com' + href;
+            window.location.href = fullUrl;
+        }
+    }
+}, true);
+
+// -----------------------------------------------
 // Hide all annoying overlay modals
+// -----------------------------------------------
 const hideOverlays = () => {
     const selectors = [
         '.leaving-so-soon',
@@ -24,7 +67,6 @@ const hideOverlays = () => {
     });
 };
 
-// Run immediately and keep watching for new overlays
 hideOverlays();
 const observer = new MutationObserver(hideOverlays);
 observer.observe(document.body || document.documentElement, {
@@ -32,4 +74,4 @@ observer.observe(document.body || document.documentElement, {
     subtree: true
 });
 
-console.log('[Netflix TV Wrapper] Browsing mode active. Playback handled by Chrome.');
+console.log('[Netflix TV Wrapper] Hybrid engine active — pushState interception enabled.');
