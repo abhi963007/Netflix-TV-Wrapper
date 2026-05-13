@@ -74,19 +74,17 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Opens a Netflix /watch/ URL in Chrome Custom Tab.
-     * Chrome has full Widevine DRM support, so playback will work.
+     * Passes WebView session cookies as HTTP headers so user stays logged in.
      */
     private void openInChrome(String url) {
-        // Netflix red color scheme for the Chrome tab
         CustomTabColorSchemeParams colorParams = new CustomTabColorSchemeParams.Builder()
-                .setToolbarColor(0xFF000000)           // Black toolbar
-                .setNavigationBarColor(0xFF000000)     // Black nav bar
+                .setToolbarColor(0xFF000000)
+                .setNavigationBarColor(0xFF000000)
                 .build();
 
-        CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
-        if (customTabsSession != null) {
-            builder = new CustomTabsIntent.Builder(customTabsSession);
-        }
+        CustomTabsIntent.Builder builder = (customTabsSession != null)
+                ? new CustomTabsIntent.Builder(customTabsSession)
+                : new CustomTabsIntent.Builder();
 
         CustomTabsIntent customTabsIntent = builder
                 .setDefaultColorSchemeParams(colorParams)
@@ -95,28 +93,18 @@ public class MainActivity extends AppCompatActivity {
                 .setUrlBarHidingEnabled(true)
                 .build();
 
-        // Sync cookies from WebView to Chrome so user stays logged in
-        syncCookiesToChrome(url);
+        // Pass WebView cookies as HTTP headers to keep the user logged in
+        String netflixCookies = CookieManager.getInstance().getCookie("https://www.netflix.com");
+        if (netflixCookies != null && !netflixCookies.isEmpty()) {
+            android.os.Bundle headers = new android.os.Bundle();
+            headers.putString("Cookie", netflixCookies);
+            // Also forward the same User-Agent so Netflix doesn't detect a mismatch
+            headers.putString("User-Agent", TV_USER_AGENT);
+            customTabsIntent.intent.putExtra(
+                    android.provider.Browser.EXTRA_HEADERS, headers);
+        }
 
         customTabsIntent.launchUrl(this, Uri.parse(url));
-    }
-
-    /**
-     * Copies the Netflix session cookies from our WebView into
-     * Chrome's cookie store so the user doesn't have to log in again.
-     */
-    private void syncCookiesToChrome(String url) {
-        try {
-            CookieManager cm = CookieManager.getInstance();
-            String cookies = cm.getCookie(url);
-            if (cookies != null) {
-                // Cookies are automatically shared via the system CookieManager
-                // when both WebView and Chrome Custom Tabs use the same profile
-                cm.flush();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
