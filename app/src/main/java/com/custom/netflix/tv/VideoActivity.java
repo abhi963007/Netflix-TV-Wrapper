@@ -20,9 +20,9 @@ public class VideoActivity extends Activity {
 
     private WebView videoWebView;
     
-    // Linux Desktop UA — Must match MainActivity to keep session valid
+    // Windows 10 Chrome UA — Most stable Netflix Cadmium player, highly forgiving with DRM
     private static final String PLAYER_UA = 
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36";
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
