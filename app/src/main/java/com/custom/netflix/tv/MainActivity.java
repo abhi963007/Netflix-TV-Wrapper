@@ -1,8 +1,7 @@
 package com.custom.netflix.tv;
 
 import android.annotation.SuppressLint;
-import android.content.ComponentName;
-import android.net.Uri;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
@@ -11,23 +10,16 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.browser.customtabs.CustomTabColorSchemeParams;
-import androidx.browser.customtabs.CustomTabsClient;
-import androidx.browser.customtabs.CustomTabsIntent;
-import androidx.browser.customtabs.CustomTabsServiceConnection;
-import androidx.browser.customtabs.CustomTabsSession;
 
 public class MainActivity extends AppCompatActivity {
 
     private WebView netflixWebView;
     private View splashOverlay;
-    private CustomTabsClient customTabsClient;
-    private CustomTabsSession customTabsSession;
 
     private static final String NETFLIX_URL = "https://www.netflix.com";
 
-    // Modern Linux Desktop — passes "Update Required" check, avoids "Open in App"
-    private static final String TV_USER_AGENT =
+    // Linux Desktop UA: avoids "Update Required" and "Open in App" screens
+    private static final String BROWSE_USER_AGENT =
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36";
 
     @Override
@@ -36,75 +28,10 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         netflixWebView = findViewById(R.id.netflix_webview);
-        splashOverlay = findViewById(R.id.splash_overlay);
-
-        // Pre-warm Chrome for faster playback handoff
-        warmupChrome();
+        splashOverlay  = findViewById(R.id.splash_overlay);
 
         setupWebView();
         netflixWebView.loadUrl(NETFLIX_URL);
-    }
-
-    /**
-     * Pre-warms the Chrome browser in the background so that when we
-     * hand off a /watch/ URL, it opens almost instantly.
-     */
-    private void warmupChrome() {
-        try {
-            CustomTabsClient.bindCustomTabsService(this, "com.android.chrome",
-                    new CustomTabsServiceConnection() {
-                        @Override
-                        public void onCustomTabsServiceConnected(ComponentName name, CustomTabsClient client) {
-                            customTabsClient = client;
-                            customTabsClient.warmup(0L);
-                            customTabsSession = customTabsClient.newSession(null);
-                        }
-
-                        @Override
-                        public void onServiceDisconnected(ComponentName name) {
-                            customTabsClient = null;
-                            customTabsSession = null;
-                        }
-                    });
-        } catch (Exception e) {
-            // Chrome not available — will fall back to default browser
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * Opens a Netflix /watch/ URL in Chrome Custom Tab.
-     * Passes WebView session cookies as HTTP headers so user stays logged in.
-     */
-    private void openInChrome(String url) {
-        CustomTabColorSchemeParams colorParams = new CustomTabColorSchemeParams.Builder()
-                .setToolbarColor(0xFF000000)
-                .setNavigationBarColor(0xFF000000)
-                .build();
-
-        CustomTabsIntent.Builder builder = (customTabsSession != null)
-                ? new CustomTabsIntent.Builder(customTabsSession)
-                : new CustomTabsIntent.Builder();
-
-        CustomTabsIntent customTabsIntent = builder
-                .setDefaultColorSchemeParams(colorParams)
-                .setColorScheme(CustomTabsIntent.COLOR_SCHEME_DARK)
-                .setShowTitle(false)
-                .setUrlBarHidingEnabled(true)
-                .build();
-
-        // Pass WebView cookies as HTTP headers to keep the user logged in
-        String netflixCookies = CookieManager.getInstance().getCookie("https://www.netflix.com");
-        if (netflixCookies != null && !netflixCookies.isEmpty()) {
-            android.os.Bundle headers = new android.os.Bundle();
-            headers.putString("Cookie", netflixCookies);
-            // Also forward the same User-Agent so Netflix doesn't detect a mismatch
-            headers.putString("User-Agent", TV_USER_AGENT);
-            customTabsIntent.intent.putExtra(
-                    android.provider.Browser.EXTRA_HEADERS, headers);
-        }
-
-        customTabsIntent.launchUrl(this, Uri.parse(url));
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -116,28 +43,21 @@ public class MainActivity extends AppCompatActivity {
         settings.setDatabaseEnabled(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        settings.setUserAgentString(TV_USER_AGENT);
+        settings.setUserAgentString(BROWSE_USER_AGENT);
         settings.setSaveFormData(true);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
 
-        // Hardware acceleration for smooth scrolling
         netflixWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
-        // Grant protected media permission (still useful for thumbnails/previews)
+        // Grant preview/trailer DRM permissions (full DRM handled in VideoActivity)
         netflixWebView.setWebChromeClient(new android.webkit.WebChromeClient() {
             @Override
             public void onPermissionRequest(final android.webkit.PermissionRequest request) {
-                for (String res : request.getResources()) {
-                    if (res.equals(android.webkit.PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID)) {
-                        request.grant(new String[]{res});
-                        return;
-                    }
-                }
-                super.onPermissionRequest(request);
+                request.grant(request.getResources());
             }
         });
 
-        // Full-screen immersive mode
+        // Full-screen immersive
         netflixWebView.setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_LOW_PROFILE |
                 View.SYSTEM_UI_FLAG_FULLSCREEN |
@@ -146,36 +66,36 @@ public class MainActivity extends AppCompatActivity {
                 View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
                 View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
 
-        // === THE HYBRID ENGINE ===
         netflixWebView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 // Block external app redirects
-                if (url.startsWith("intent://") || url.startsWith("market://") || url.startsWith("netflix://")) {
+                if (url.startsWith("intent://") ||
+                    url.startsWith("market://") ||
+                    url.startsWith("netflix://")) {
                     return true;
                 }
 
-                // HYBRID HANDOFF: Detect /watch/ URLs and open in Chrome
-                if (url.contains("/watch/") || url.contains("watch?v=")) {
-                    openInChrome(url);
-                    return true; // Don't load in WebView
+                // HYBRID HANDOFF: /watch/ URLs → VideoActivity (native DRM)
+                if (url.contains("netflix.com/watch/") || url.contains("netflix.com/watch?")) {
+                    launchVideoPlayer(url);
+                    return true;
                 }
 
-                return false; // Everything else loads normally in WebView
+                return false;
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
 
-                // Hide splash screen after page loads
+                // Hide splash after page loads
                 netflixWebView.postDelayed(() -> {
                     if (splashOverlay != null) {
                         splashOverlay.setVisibility(View.GONE);
                     }
                 }, 3000);
 
-                // Inject our cinematic CSS and JS
                 injectCustomAssets();
             }
         });
@@ -184,25 +104,42 @@ public class MainActivity extends AppCompatActivity {
         CookieManager.getInstance().setAcceptThirdPartyCookies(netflixWebView, true);
     }
 
+    /**
+     * Launches VideoActivity with the /watch/ URL and current session cookies.
+     * VideoActivity uses the device's native UA so Widevine DRM works properly.
+     */
+    private void launchVideoPlayer(String url) {
+        // Flush cookies to disk first
+        CookieManager.getInstance().flush();
+
+        // Get session cookies to pass to VideoActivity
+        String cookies = CookieManager.getInstance().getCookie("https://www.netflix.com");
+
+        Intent intent = new Intent(this, VideoActivity.class);
+        intent.putExtra(VideoActivity.EXTRA_URL,     url);
+        intent.putExtra(VideoActivity.EXTRA_COOKIES, cookies);
+        startActivity(intent);
+    }
+
     private void injectCustomAssets() {
         try {
-            // Inject CSS (cinematic styles, red glow, etc.)
+            // Inject CSS (cinematic styles)
             java.io.InputStream cssInput = getAssets().open("netflix_tv.css");
             byte[] cssBuffer = new byte[cssInput.available()];
             cssInput.read(cssBuffer);
             cssInput.close();
             String cssEncoded = android.util.Base64.encodeToString(cssBuffer, android.util.Base64.NO_WRAP);
-            netflixWebView.evaluateJavascript("var style = document.createElement('style');" +
+            netflixWebView.evaluateJavascript(
+                    "var style = document.createElement('style');" +
                     "style.innerHTML = window.atob('" + cssEncoded + "');" +
                     "document.head.appendChild(style);", null);
 
-            // Inject JS (overlay hiding, layout fixes)
+            // Inject JS (overlay hiding + pushState intercept)
             java.io.InputStream jsInput = getAssets().open("netflix_tv.js");
             byte[] jsBuffer = new byte[jsInput.available()];
             jsInput.read(jsBuffer);
             jsInput.close();
-            String jsContent = new String(jsBuffer);
-            netflixWebView.evaluateJavascript(jsContent, null);
+            netflixWebView.evaluateJavascript(new String(jsBuffer), null);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -212,15 +149,25 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         switch (keyCode) {
-            case KeyEvent.KEYCODE_DPAD_CENTER:
-            case KeyEvent.KEYCODE_ENTER:
-                return super.onKeyDown(keyCode, event);
             case KeyEvent.KEYCODE_BACK:
                 if (netflixWebView.canGoBack()) {
                     netflixWebView.goBack();
                     return true;
                 }
+                break;
         }
         return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        netflixWebView.onResume();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        netflixWebView.onPause();
     }
 }
