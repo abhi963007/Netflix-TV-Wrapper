@@ -18,9 +18,9 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String NETFLIX_URL = "https://www.netflix.com";
 
-    // Linux Desktop UA: avoids "Update Required" and "Open in App" screens
-    private static final String BROWSE_USER_AGENT =
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36";
+    // Universal Samsung Smart TV UA — perfect for both browsing and DRM playback
+    private static final String UNIVERSAL_TV_UA =
+            "Mozilla/5.0 (SmartHub; SMART-TV; Linux; Tizen 6.5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.51 Safari/537.36";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
         settings.setDatabaseEnabled(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        settings.setUserAgentString(BROWSE_USER_AGENT);
+        settings.setUserAgentString(UNIVERSAL_TV_UA);
         settings.setSaveFormData(true);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
 

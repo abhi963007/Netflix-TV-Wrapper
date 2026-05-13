@@ -25,9 +25,9 @@ import android.webkit.WebViewClient;
  */
 public class VideoActivity extends Activity {
 
-    // Sony Bravia TV UA — triggers the Android-compatible player and native DRM
-    private static final String SONY_BRAVIA_UA =
-            "Mozilla/5.0 (Linux; Android 10; BRAVIA 4K VH2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    // Must match MainActivity exactly for session consistency
+    private static final String UNIVERSAL_TV_UA =
+            "Mozilla/5.0 (SmartHub; SMART-TV; Linux; Tizen 6.5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.51 Safari/537.36";
 
     public static final String EXTRA_URL     = "video_url";
     public static final String EXTRA_COOKIES = "video_cookies";
@@ -89,10 +89,8 @@ public class VideoActivity extends Activity {
     private void setupVideoWebView() {
         WebSettings s = videoWebView.getSettings();
 
-        // === TV UA FOR PLAYBACK ===
-        // We use a TV-specific UA here so Netflix sends the player 
-        // that is compatible with Android's system Widevine.
-        s.setUserAgentString(SONY_BRAVIA_UA);
+        // === UNIVERSAL TV UA ===
+        s.setUserAgentString(UNIVERSAL_TV_UA);
 
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
