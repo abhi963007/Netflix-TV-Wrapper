@@ -25,9 +25,9 @@ import android.webkit.WebViewClient;
  */
 public class VideoActivity extends Activity {
 
-    // Must match MainActivity exactly so Netflix doesn't see a session mismatch
-    private static final String CHROME_UA =
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36";
+    // Sony Bravia TV UA — triggers the Android-compatible player and native DRM
+    private static final String SONY_BRAVIA_UA =
+            "Mozilla/5.0 (Linux; Android 10; BRAVIA 4K VH2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
     public static final String EXTRA_URL     = "video_url";
     public static final String EXTRA_COOKIES = "video_cookies";
@@ -89,11 +89,10 @@ public class VideoActivity extends Activity {
     private void setupVideoWebView() {
         WebSettings s = videoWebView.getSettings();
 
-        // === SAME UA AS BROWSING SESSION ===
-        // Must be identical to MainActivity's UA — Netflix validates
-        // the session cookie was issued to the same browser identity.
-        // Device HAS Widevine (confirmed), so Chrome 123 + Widevine works.
-        s.setUserAgentString(CHROME_UA);
+        // === TV UA FOR PLAYBACK ===
+        // We use a TV-specific UA here so Netflix sends the player 
+        // that is compatible with Android's system Widevine.
+        s.setUserAgentString(SONY_BRAVIA_UA);
 
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
