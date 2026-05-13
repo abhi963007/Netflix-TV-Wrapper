@@ -20,17 +20,22 @@ public class MainActivity extends AppCompatActivity {
 
     private void checkPermissionAndLaunch() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (!Settings.canDrawOverlays(this)) {
-                // We need permission to draw the invisible orientation ghost window
-                Toast.makeText(this, "Please grant 'Display over other apps' to force Landscape Mode", Toast.LENGTH_LONG).show();
-                Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:" + getPackageName()));
-                startActivityForResult(intent, OVERLAY_PERMISSION_REQ_CODE);
-                return;
+            try {
+                if (!Settings.canDrawOverlays(this)) {
+                    // We need permission to draw the invisible orientation ghost window
+                    Toast.makeText(this, "Please grant 'Display over other apps' to force Landscape Mode", Toast.LENGTH_LONG).show();
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:" + getPackageName()));
+                    startActivityForResult(intent, OVERLAY_PERMISSION_REQ_CODE);
+                    return;
+                }
+            } catch (Exception e) {
+                // Some TVs don't support the overlay settings page; skip and try to launch anyway
+                android.util.Log.e("GhostLauncher", "Overlay settings not found: " + e.getMessage());
             }
         }
         
-        // Permission is granted. Start the ghost orientation locker!
+        // Permission is granted or settings page is missing. Start the ghost orientation locker!
         startGhostLauncher();
     }
 
