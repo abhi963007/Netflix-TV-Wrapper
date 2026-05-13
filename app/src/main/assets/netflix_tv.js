@@ -2,21 +2,13 @@
 Object.defineProperty(window.screen, 'width', { get: () => 1280 });
 Object.defineProperty(window.screen, 'height', { get: () => 720 });
 
-// Spoof tablet properties
-Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 10 });
-Object.defineProperty(navigator, 'platform', { get: () => 'Linux armv8l' });
+// ChromeOS / Linux Spoofing
+Object.defineProperty(navigator, 'platform', { get: () => 'X11; CrOS x86_64' });
 
-// Overwrite 'canPlayType' to force Netflix to use compatible codecs
-const oldCanPlayType = HTMLVideoElement.prototype.canPlayType;
-HTMLVideoElement.prototype.canPlayType = function(type) {
-    if (type.contains('avc1') || type.contains('mp4')) return 'probably';
-    return oldCanPlayType.call(this, type);
-};
-
-// Force hide annoying sign-out overlays
+// Force hide annoying sign-out and app-redirect overlays
 const hideInterval = setInterval(() => {
-    const overlays = document.querySelectorAll('.leaving-so-soon, .sign-out-container, .update-required-overlay');
+    const overlays = document.querySelectorAll('.leaving-so-soon, .sign-out-container, .update-required-overlay, .modal-open-app');
     overlays.forEach(el => el.style.display = 'none');
 }, 1000);
 
-console.log("Netflix TV Wrapper: Tablet Spoofing & Codec Force Active");
+console.log("Netflix TV Wrapper: ChromeOS Hybrid Mode Active");

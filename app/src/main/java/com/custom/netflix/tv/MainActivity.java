@@ -15,7 +15,7 @@ public class MainActivity extends AppCompatActivity {
     private WebView netflixWebView;
     private View splashOverlay;
     private static final String NETFLIX_URL = "https://www.netflix.com";
-    private static final String TV_USER_AGENT = "Mozilla/5.0 (Linux; Android 13; Pixel Tablet) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36";
+    private static final String TV_USER_AGENT = "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,6 +68,14 @@ public class MainActivity extends AppCompatActivity {
                 View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
 
         netflixWebView.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                if (url.startsWith("intent://") || url.startsWith("market://") || url.startsWith("netflix://")) {
+                    return true; // Block redirects to external apps
+                }
+                return false;
+            }
+
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
