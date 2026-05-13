@@ -144,29 +144,34 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Launches the official Chrome Browser engine (Custom Tabs) to play the video.
-     * This bypasses the Android WebView DRM block because Chrome is fully authorized by Netflix.
+     * The "Deep Link Handoff" Architecture.
+     * Bypasses the Web DRM entirely by sending the movie URL directly to the official Netflix app.
      */
     private void launchVideoPlayer(String url) {
         try {
-            android.util.Log.d("NetflixBridge", "Launching Chrome Custom Tab for: " + url);
+            android.util.Log.d("NetflixBridge", "Handing off playback to Native Netflix App: " + url);
             
-            androidx.browser.customtabs.CustomTabsIntent.Builder builder = new androidx.browser.customtabs.CustomTabsIntent.Builder();
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setData(android.net.Uri.parse(url));
             
-            // Configure UI to look as "app-like" as possible
-            builder.setShowTitle(false);
-            builder.setUrlBarHidingEnabled(true);
+            // Force the intent to open the official Netflix Mobile App
+            intent.setPackage("com.netflix.mediaclient"); 
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             
-            androidx.browser.customtabs.CustomTabsIntent customTabsIntent = builder.build();
-            
-            // Launch the video seamlessly
-            customTabsIntent.launchUrl(this, android.net.Uri.parse(url));
+            startActivity(intent);
             
         } catch (Exception e) {
-            android.util.Log.e("NetflixBridge", "CCT Failed, falling back to standard browser", e);
-            // Fallback just in case Chrome isn't the default handler
-            Intent browserIntent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url));
-            startActivity(browserIntent);
+            android.util.Log.e("NetflixBridge", "Native Netflix app not installed!", e);
+            // Fallback to Chrome Custom Tabs if the native app isn't installed
+            try {
+                androidx.browser.customtabs.CustomTabsIntent.Builder builder = new androidx.browser.customtabs.CustomTabsIntent.Builder();
+                builder.setShowTitle(false);
+                builder.setUrlBarHidingEnabled(true);
+                builder.build().launchUrl(this, android.net.Uri.parse(url));
+            } catch (Exception ex) {
+                // Final fallback
+                startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)));
+            }
         }
     }
 
