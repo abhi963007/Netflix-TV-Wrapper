@@ -3,31 +3,41 @@ package com.custom.netflix.tv;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
-import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+/**
+ * VideoActivity — In-app player using a dedicated WebView.
+ *
+ * Strategy: Use the device's real system User-Agent (no spoofing).
+ * The system WebView has the same Widevine support as the device's
+ * default browser. We restore the full Netflix session by re-injecting
+ * all cookies from the browsing WebView.
+ */
 public class VideoActivity extends Activity {
-
-    private WebView videoWebView;
 
     public static final String EXTRA_URL     = "video_url";
     public static final String EXTRA_COOKIES = "video_cookies";
+
+    private WebView videoWebView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // True full-screen — no status bar, no navigation bar
+        // Keep screen on during playback
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        // True full-screen immersive
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_FULLSCREEN |
                 View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
@@ -36,91 +46,100 @@ public class VideoActivity extends Activity {
                 View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
 
-        // Full-screen WebView — no layout file needed
+        // Build a full-screen black WebView programmatically
         videoWebView = new WebView(this);
-        videoWebView.setLayoutParams(new android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
         videoWebView.setBackgroundColor(0xFF000000);
         setContentView(videoWebView);
 
         String url     = getIntent().getStringExtra(EXTRA_URL);
         String cookies = getIntent().getStringExtra(EXTRA_COOKIES);
 
-        // Restore cookies from the browsing session so we stay logged in
-        if (cookies != null && !cookies.isEmpty()) {
-            CookieManager cm = CookieManager.getInstance();
-            cm.setAcceptCookie(true);
-            cm.setAcceptThirdPartyCookies(videoWebView, true);
-            // Inject each individual cookie
-            for (String cookie : cookies.split(";")) {
-                cm.setCookie("https://www.netflix.com", cookie.trim());
-            }
-            cm.flush();
-        }
-
+        // Re-inject browsing session cookies so we're still logged in
+        injectCookies(cookies);
         setupVideoWebView();
 
-        if (url != null) {
+        if (url != null && !url.isEmpty()) {
             videoWebView.loadUrl(url);
+        } else {
+            finish();
         }
+    }
+
+    private void injectCookies(String cookieString) {
+        if (cookieString == null || cookieString.isEmpty()) return;
+        CookieManager cm = CookieManager.getInstance();
+        cm.setAcceptCookie(true);
+        cm.setAcceptThirdPartyCookies(videoWebView, true);
+        // Split and inject each cookie individually
+        for (String cookie : cookieString.split(";")) {
+            String trimmed = cookie.trim();
+            if (!trimmed.isEmpty()) {
+                cm.setCookie("https://www.netflix.com", trimmed);
+                cm.setCookie("https://netflix.com", trimmed);
+            }
+        }
+        cm.flush();
     }
 
     @SuppressLint("SetJavaScriptEnabled")
     private void setupVideoWebView() {
-        WebSettings settings = videoWebView.getSettings();
+        WebSettings s = videoWebView.getSettings();
 
-        // === USE THE DEVICE'S OWN NATIVE UA ===
-        // This is the key: we do NOT spoof anything here.
-        // The device's real WebView UA tells Netflix exactly what
-        // Widevine level this hardware supports, so DRM works natively.
-        // We only append a hint that we accept HD video.
-        String nativeUA = settings.getUserAgentString();
-        // Keep native UA — don't override it
+        // === DO NOT SPOOF THE USER AGENT ===
+        // The native system WebView UA tells Netflix the real Widevine
+        // capability of this device. Spoofing breaks the DRM handshake.
+        // s.setUserAgentString(...)  <-- intentionally left out
 
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
-        settings.setDatabaseEnabled(true);
-        settings.setMediaPlaybackRequiresUserGesture(false);
-        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
+        s.setDatabaseEnabled(true);
+        s.setMediaPlaybackRequiresUserGesture(false);
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        s.setCacheMode(WebSettings.LOAD_DEFAULT);
+        s.setSaveFormData(true);
+        s.setLoadWithOverviewMode(true);
+        s.setUseWideViewPort(true);
 
-        // Critical for DRM: allow saved passwords / form data
-        settings.setSaveFormData(true);
-
-        // Hardware acceleration for smooth video
+        // GPU-accelerated rendering for smooth video
         videoWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
-        // Grant ALL media permissions automatically
+        // Grant ALL media permissions — video, audio, Widevine (protected media)
         videoWebView.setWebChromeClient(new WebChromeClient() {
+            private View fullscreenView;
+
             @Override
-            public void onPermissionRequest(final PermissionRequest request) {
-                // Grant all — video, audio, protected media (Widevine)
+            public void onPermissionRequest(PermissionRequest request) {
                 request.grant(request.getResources());
             }
 
             @Override
             public void onShowCustomView(View view, CustomViewCallback callback) {
-                // Handle full-screen video playback
+                // Handle full-screen video player expansion
+                fullscreenView = view;
                 setContentView(view);
+                view.setSystemUiVisibility(
+                        View.SYSTEM_UI_FLAG_FULLSCREEN |
+                        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
             }
 
             @Override
             public void onHideCustomView() {
                 setContentView(videoWebView);
+                fullscreenView = null;
             }
         });
 
         videoWebView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                // Stay within Netflix — block external redirects
+                // Block external app redirects
                 if (url.startsWith("intent://") ||
                     url.startsWith("market://") ||
                     url.startsWith("netflix://")) {
                     return true;
                 }
-                // If redirected to login, go back to MainActivity
+                // If kicked to a non-Netflix page, close player
                 if (!url.contains("netflix.com")) {
                     finish();
                     return true;
@@ -131,12 +150,16 @@ public class VideoActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                // Inject minimal JS to auto-start and clean up the video UI
+                // Auto-play the video and hide the browser UI clutter
                 view.evaluateJavascript(
                     "(function() {" +
-                    "  document.body.style.background='#000';" +
-                    "  var videos = document.querySelectorAll('video');" +
-                    "  videos.forEach(function(v) { v.play(); });" +
+                    "  document.body.style.background = '#000';" +
+                    "  document.body.style.margin = '0';" +
+                    "  document.body.style.overflow = 'hidden';" +
+                    "  var vids = document.querySelectorAll('video');" +
+                    "  vids.forEach(function(v) {" +
+                    "    v.play().catch(function(){});" +
+                    "  });" +
                     "})();", null);
             }
         });
@@ -148,7 +171,7 @@ public class VideoActivity extends Activity {
             if (videoWebView.canGoBack()) {
                 videoWebView.goBack();
             } else {
-                finish(); // Return to MainActivity
+                finish(); // Return to MainActivity browse screen
             }
             return true;
         }
@@ -158,20 +181,22 @@ public class VideoActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
-        videoWebView.onPause();
+        if (videoWebView != null) videoWebView.onPause();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        videoWebView.onResume();
+        if (videoWebView != null) videoWebView.onResume();
     }
 
     @Override
     protected void onDestroy() {
         if (videoWebView != null) {
             videoWebView.stopLoading();
+            videoWebView.loadUrl("about:blank");
             videoWebView.destroy();
+            videoWebView = null;
         }
         super.onDestroy();
     }
