@@ -171,8 +171,18 @@ public class MainActivity extends AppCompatActivity {
         @android.webkit.JavascriptInterface
         public void playVideo(final String url) {
             runOnUiThread(() -> {
-                // Launch the dedicated player with the movie URL
-                launchVideoPlayer(url);
+                String fullUrl = url;
+                // If it's a relative URL like /watch/123, make it absolute
+                if (url != null && !url.startsWith("http")) {
+                    if (url.startsWith("/")) {
+                        fullUrl = "https://www.netflix.com" + url;
+                    } else {
+                        fullUrl = "https://www.netflix.com/" + url;
+                    }
+                }
+                
+                android.util.Log.d("NetflixBridge", "Launching full URL: " + fullUrl);
+                launchVideoPlayer(fullUrl);
             });
         }
     }
