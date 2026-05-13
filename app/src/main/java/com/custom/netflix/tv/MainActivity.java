@@ -18,9 +18,8 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String NETFLIX_URL = "https://www.netflix.com";
 
-    // Universal Samsung Smart TV UA — perfect for both browsing and DRM playback
-    private static final String UNIVERSAL_TV_UA =
-            "Mozilla/5.0 (SmartHub; SMART-TV; Linux; Tizen 6.5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.51 Safari/537.36";
+    // Linux Desktop UA — passes "Update Required", avoids "Open in App"
+    private static final String BROWSE_UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,7 +27,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         netflixWebView = findViewById(R.id.netflix_webview);
-        splashOverlay  = findViewById(R.id.splash_overlay);
+        splashOverlay = findViewById(R.id.splash_overlay);
 
         setupWebView();
         netflixWebView.loadUrl(NETFLIX_URL);
@@ -43,9 +42,13 @@ public class MainActivity extends AppCompatActivity {
         settings.setDatabaseEnabled(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        settings.setUserAgentString(UNIVERSAL_TV_UA);
+        settings.setUserAgentString(BROWSE_UA);
         settings.setSaveFormData(true);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+
+        // JS Bridge: lets JavaScript call back into Android
+        // when Netflix's pushState navigation goes to /watch/
+        netflixWebView.addJavascriptInterface(new NetflixBridge(), "AndroidBridge");
 
         netflixWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
@@ -60,19 +63,19 @@ public class MainActivity extends AppCompatActivity {
         // Full-screen immersive
         netflixWebView.setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_LOW_PROFILE |
-                View.SYSTEM_UI_FLAG_FULLSCREEN |
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
-                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
+                        View.SYSTEM_UI_FLAG_FULLSCREEN |
+                        View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
+                        View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
 
         netflixWebView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 // Block external app redirects
                 if (url.startsWith("intent://") ||
-                    url.startsWith("market://") ||
-                    url.startsWith("netflix://")) {
+                        url.startsWith("market://") ||
+                        url.startsWith("netflix://")) {
                     return true;
                 }
 
@@ -116,7 +119,7 @@ public class MainActivity extends AppCompatActivity {
         String cookies = CookieManager.getInstance().getCookie("https://www.netflix.com");
 
         Intent intent = new Intent(this, VideoActivity.class);
-        intent.putExtra(VideoActivity.EXTRA_URL,     url);
+        intent.putExtra(VideoActivity.EXTRA_URL, url);
         intent.putExtra(VideoActivity.EXTRA_COOKIES, cookies);
         startActivity(intent);
     }
@@ -131,8 +134,9 @@ public class MainActivity extends AppCompatActivity {
             String cssEncoded = android.util.Base64.encodeToString(cssBuffer, android.util.Base64.NO_WRAP);
             netflixWebView.evaluateJavascript(
                     "var style = document.createElement('style');" +
-                    "style.innerHTML = window.atob('" + cssEncoded + "');" +
-                    "document.head.appendChild(style);", null);
+                            "style.innerHTML = window.atob('" + cssEncoded + "');" +
+                            "document.head.appendChild(style);",
+                    null);
 
             // Inject JS (overlay hiding + pushState intercept)
             java.io.InputStream jsInput = getAssets().open("netflix_tv.js");
