@@ -1,59 +1,29 @@
-# Netflix TV Wrapper 📺
+# Netflix TV Ghost Launcher
 
-A high-fidelity, cinematic Android TV application built as a WebView wrapper for Netflix. This project uses advanced CSS/JS injection to transform the standard Netflix web interface into a premium TV portal with custom navigation, styling, and playback optimizations.
+A custom Android TV wrapper designed to force the official Netflix Mobile app into a true horizontal, TV-friendly experience.
 
-![Project Status](https://img.shields.io/badge/Status-Cinematic_Portal-red?style=for-the-badge)
-![Platform](https://img.shields.io/badge/Platform-Android_TV-E50914?style=for-the-badge&logo=android)
+## The Problem
+Many uncertified Android TVs (e.g., Amlogic boards) are blocked from running the official Android TV version of Netflix (`com.netflix.ninja`). The only workaround is to use the Netflix Mobile App (`com.netflix.mediaclient`). However, the mobile app is locked to Portrait mode, making it impossible to use on a TV screen without stretching or black bars.
 
-## ✨ Key Features
+## The Solution
+This project is a **"Ghost Launcher"**. It provides a native Android TV launcher icon for Netflix. When clicked, it performs the following magic invisibly in the background:
 
-- **Cinematic UI**: Custom CSS injection for a "Dark Room" aesthetic with 4px corner radii and glassmorphic navigation.
-- **Signature Focus State**: D-Pad optimized focus engine with **1.15x scaling** and a **Netflix Red (#E50914) glow**.
-- **DRM & Update Bypass**: Automated hardware spoofing (Pixel Tablet) to bypass "Update Required" blocks and E100 DRM handshake errors.
-- **720p/SD Optimization**: Force-spoofs device memory and resolution to ensure smooth playback on hardware with limited capabilities.
-- **Premium Splash**: High-fidelity Netflix branding with a native red loading spinner.
+1. **System Alert Overlay:** It creates a completely invisible 0x0 pixel overlay window using the `SYSTEM_ALERT_WINDOW` permission.
+2. **Force Orientation:** It explicitly requests `ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE` on that invisible window.
+3. **App Handoff:** It immediately fires an intent to open the official Netflix mobile app.
+4. **Ghost Exit:** It closes itself.
 
-## 🛠️ How It Works (Architecture)
+### The Result
+Because the invisible overlay is active, the Android OS physically forces the official Netflix Mobile app beneath it to stretch into perfect Landscape mode, providing a flawless full-screen TV experience without ever breaking the official app's signature or DRM!
 
-The application operates as a "Cinematic Bridge" between the Android system and the Netflix web service.
+## Setup Instructions
+1. Install your preferred (working) Netflix Mobile APK onto your TV.
+2. Build and install this Ghost Launcher APK.
+3. Open the "Netflix" icon from your Android TV home screen.
+4. On the very first launch, it will prompt you to grant the **"Display over other apps"** permission. Allow it.
+5. Launch the app again. Netflix will now open perfectly horizontal!
 
-```mermaid
-graph TD
-    A[Android TV Launcher] -->|Start| B(Splash Screen)
-    B -->|Initialize| C{WebView Engine}
-    C -->|Spoof UA| D[Pixel Tablet Identity]
-    C -->|Injection| E[CSS: Red Glow & Cinematic Styles]
-    C -->|Injection| F[JS: 720p Spoofing & D-Pad Logic]
-    D -->|Request| G[Netflix.com]
-    G -->|Return HTML| C
-    C -->|Render| H[Cinematic Portal UI]
-    H -->|Focus Event| I[Red Glow Highlight]
-```
-
-## 🚀 Setup & Installation
-
-### Prerequisites
-- Android Studio Iguana or newer
-- An Android TV or Emulator (API 21+)
-
-### Build Steps
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/abhi963007/Netflix-TV-Wrapper.git
-   ```
-2. Open the project in **Android Studio**.
-3. Select **"Sync Project with Gradle Files"**.
-4. Connect your TV via ADB:
-   ```bash
-   adb connect <TV_IP_ADDRESS>
-   ```
-5. Click **Run**.
-
-## 🔧 Technical Details
-
-- **User-Agent Spoofing**: Uses a modern Pixel Tablet string to trigger the most compatible mobile-web player.
-- **CSS Injection**: Leverages `evaluateJavascript` to apply styles post-load, ensuring "No-Line" boundary philosophy is maintained.
-- **Permission Handshake**: Automatically grants `RESOURCE_PROTECTED_MEDIA_ID` to allow the WebView to access the hardware's Widevine CDM.
-
-## 📜 License
-This project is for educational purposes only. Netflix is a registered trademark of Netflix, Inc.
+## Technical Details
+- **MainActivity:** Acts as the permission handler and intent dispatcher.
+- **OrientationService:** Runs the `WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY` to force system-wide rotation.
+- **No WebViews:** Completely bypasses WebView DRM limits (Error E100) by using the official app's native Widevine implementation.

@@ -33,15 +33,7 @@
             </intent-filter>
         </activity>
 
-        <!-- VideoActivity: Dedicated in-app player with native DRM -->
-        <activity
-            android:name=".VideoActivity"
-            android:screenOrientation="landscape"
-            android:exported="false"
-            android:hardwareAccelerated="true"
-            android:noHistory="false"
-            android:configChanges="orientation|screenSize|keyboardHidden"
-            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
 
         <!-- Ghost Orientation Service -->
         <service 
