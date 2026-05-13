@@ -20,9 +20,9 @@ public class VideoActivity extends Activity {
 
     private WebView videoWebView;
     
-    // Windows 10 Chrome UA — Most stable Netflix Cadmium player, highly forgiving with DRM
+    // Microsoft Edge (Windows 11) UA — Netflix's most supported web player environment
     private static final String PLAYER_UA = 
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,8 +37,12 @@ public class VideoActivity extends Activity {
                 View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
 
         videoWebView = new WebView(this);
-        // We temporarily remove the forced black background so we can see errors
-        // videoWebView.setBackgroundColor(0xFF000000); 
+        
+        // --- CRITICAL: Nuke all previous state to prevent E100 cache corruption ---
+        videoWebView.clearCache(true);
+        videoWebView.clearHistory();
+        android.webkit.WebStorage.getInstance().deleteAllData();
+        
         setContentView(videoWebView);
 
         String url = getIntent().getStringExtra(EXTRA_URL);
