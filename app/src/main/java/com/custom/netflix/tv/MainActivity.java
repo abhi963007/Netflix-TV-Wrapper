@@ -163,6 +163,20 @@ public class MainActivity extends AppCompatActivity {
         return super.onKeyDown(keyCode, event);
     }
 
+    /**
+     * JavaScript Bridge: This is called from our netflix_tv.js
+     * when it detects a /watch/ URL navigation.
+     */
+    public class NetflixBridge {
+        @android.webkit.JavascriptInterface
+        public void playVideo(final String url) {
+            runOnUiThread(() -> {
+                // Launch the dedicated player with the movie URL
+                launchVideoPlayer(url);
+            });
+        }
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
