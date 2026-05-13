@@ -79,11 +79,13 @@ public class MainActivity extends AppCompatActivity {
                     return true;
                 }
 
-                // HYBRID HANDOFF: /watch/ URLs → VideoActivity (native DRM)
+                /* 
+                // HYBRID HANDOFF DISABLED: Trailers are working in main WebView!
                 if (url.contains("netflix.com/watch/") || url.contains("netflix.com/watch?")) {
                     launchVideoPlayer(url);
                     return true;
                 }
+                */
 
                 return false;
             }
@@ -171,18 +173,8 @@ public class MainActivity extends AppCompatActivity {
         @android.webkit.JavascriptInterface
         public void playVideo(final String url) {
             runOnUiThread(() -> {
-                String fullUrl = url;
-                // If it's a relative URL like /watch/123, make it absolute
-                if (url != null && !url.startsWith("http")) {
-                    if (url.startsWith("/")) {
-                        fullUrl = "https://www.netflix.com" + url;
-                    } else {
-                        fullUrl = "https://www.netflix.com/" + url;
-                    }
-                }
-                
-                android.util.Log.d("NetflixBridge", "Launching full URL: " + fullUrl);
-                launchVideoPlayer(fullUrl);
+                // Bridge disabled to keep playback in the main window
+                android.util.Log.d("NetflixBridge", "Trailers work! Staying in main window.");
             });
         }
     }
