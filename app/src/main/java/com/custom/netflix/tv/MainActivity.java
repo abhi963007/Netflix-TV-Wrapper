@@ -15,11 +15,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
-        // We set the layout so the user sees the Netflix Splash Screen (White Banner/Logo)
-        // while it calculates the launch.
-        setContentView(R.layout.activity_main);
-
         checkPermissionAndLaunch();
     }
 

@@ -25,6 +25,7 @@
             android:label="Netflix"
             android:logo="@drawable/tv_banner"
             android:screenOrientation="landscape"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
