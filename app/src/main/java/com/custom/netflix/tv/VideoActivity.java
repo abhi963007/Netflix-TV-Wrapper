@@ -25,6 +25,10 @@ import android.webkit.WebViewClient;
  */
 public class VideoActivity extends Activity {
 
+    // Must match MainActivity exactly so Netflix doesn't see a session mismatch
+    private static final String CHROME_UA =
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36";
+
     public static final String EXTRA_URL     = "video_url";
     public static final String EXTRA_COOKIES = "video_cookies";
 
@@ -85,10 +89,11 @@ public class VideoActivity extends Activity {
     private void setupVideoWebView() {
         WebSettings s = videoWebView.getSettings();
 
-        // === DO NOT SPOOF THE USER AGENT ===
-        // The native system WebView UA tells Netflix the real Widevine
-        // capability of this device. Spoofing breaks the DRM handshake.
-        // s.setUserAgentString(...)  <-- intentionally left out
+        // === SAME UA AS BROWSING SESSION ===
+        // Must be identical to MainActivity's UA — Netflix validates
+        // the session cookie was issued to the same browser identity.
+        // Device HAS Widevine (confirmed), so Chrome 123 + Widevine works.
+        s.setUserAgentString(CHROME_UA);
 
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
@@ -148,18 +153,36 @@ public class VideoActivity extends Activity {
             }
 
             @Override
+            public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+                super.onPageStarted(view, url, favicon);
+                // Inject Chrome fingerprint BEFORE page scripts run.
+                // Netflix checks window.chrome and navigator.webdriver
+                // to detect WebView vs real Chrome. We fix both here.
+                view.evaluateJavascript(
+                    "(function() {" +
+                    "  if (!window.chrome) {" +
+                    "    window.chrome = { runtime: {}, loadTimes: function(){}, csi: function(){} };" +
+                    "  }" +
+                    "  try {" +
+                    "    Object.defineProperty(navigator, 'webdriver', { get: () => false });" +
+                    "  } catch(e) {}" +
+                    "  try {" +
+                    "    Object.defineProperty(navigator, 'plugins', { get: () => [1,2,3,4,5] });" +
+                    "  } catch(e) {}" +
+                    "})();", null);
+            }
+
+            @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                // Auto-play the video and hide the browser UI clutter
+                // Auto-play and clean up UI
                 view.evaluateJavascript(
                     "(function() {" +
                     "  document.body.style.background = '#000';" +
                     "  document.body.style.margin = '0';" +
                     "  document.body.style.overflow = 'hidden';" +
                     "  var vids = document.querySelectorAll('video');" +
-                    "  vids.forEach(function(v) {" +
-                    "    v.play().catch(function(){});" +
-                    "  });" +
+                    "  vids.forEach(function(v) { v.play().catch(function(){}); });" +
                     "})();", null);
             }
         });
