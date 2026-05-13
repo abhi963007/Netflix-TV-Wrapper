@@ -1,247 +1,79 @@
 package com.custom.netflix.tv;
 
-import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
-import android.view.KeyEvent;
-import android.view.View;
-import android.webkit.CookieManager;
-import android.webkit.WebSettings;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
+import android.provider.Settings;
+import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
 
-    private WebView netflixWebView;
-    private View splashOverlay;
-
-    private static final String NETFLIX_URL = "https://www.netflix.com";
-
-    // Linux Desktop UA — passes "Update Required", avoids "Open in App"
-    private static final String BROWSE_UA = 
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36";
+    private static final int OVERLAY_PERMISSION_REQ_CODE = 1234;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // We set the layout so the user sees the Netflix Splash Screen (White Banner/Logo)
+        // while it calculates the launch.
         setContentView(R.layout.activity_main);
 
-        netflixWebView = findViewById(R.id.netflix_webview);
-        splashOverlay = findViewById(R.id.splash_overlay);
-
-        setupWebView();
-        netflixWebView.loadUrl(NETFLIX_URL);
+        checkPermissionAndLaunch();
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
-    private void setupWebView() {
-        WebSettings settings = netflixWebView.getSettings();
-
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
-        settings.setDatabaseEnabled(true);
-        settings.setMediaPlaybackRequiresUserGesture(false);
-        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        settings.setUserAgentString(BROWSE_UA);
-        settings.setSaveFormData(true);
-        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-
-        // JS Bridge: lets JavaScript call back into Android
-        // when Netflix's pushState navigation goes to /watch/
-        netflixWebView.addJavascriptInterface(new NetflixBridge(), "AndroidBridge");
-
-        netflixWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
-
-        // Support for Fullscreen Video Playback
-        netflixWebView.setWebChromeClient(new android.webkit.WebChromeClient() {
-            private View customView;
-            private CustomViewCallback customViewCallback;
-
-            @Override
-            public void onPermissionRequest(final android.webkit.PermissionRequest request) {
-                request.grant(request.getResources());
+    private void checkPermissionAndLaunch() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!Settings.canDrawOverlays(this)) {
+                // We need permission to draw the invisible orientation ghost window
+                Toast.makeText(this, "Please grant 'Display over other apps' to force Landscape Mode", Toast.LENGTH_LONG).show();
+                Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:" + getPackageName()));
+                startActivityForResult(intent, OVERLAY_PERMISSION_REQ_CODE);
+                return;
             }
-
-            @Override
-            public void onShowCustomView(View view, CustomViewCallback callback) {
-                if (customView != null) {
-                    onHideCustomView();
-                    return;
-                }
-                customView = view;
-                customViewCallback = callback;
-                
-                // Hide the main webview and show the video view
-                netflixWebView.setVisibility(View.GONE);
-                ((android.view.ViewGroup) netflixWebView.getParent()).addView(customView);
-                
-                // Set immersive fullscreen for the video
-                customView.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
-            }
-
-            @Override
-            public void onHideCustomView() {
-                if (customView == null) return;
-                
-                // Remove the video view and show the webview again
-                ((android.view.ViewGroup) netflixWebView.getParent()).removeView(customView);
-                customView = null;
-                netflixWebView.setVisibility(View.VISIBLE);
-                customViewCallback.onCustomViewHidden();
-            }
-        });
-
-        // Full-screen immersive
-        netflixWebView.setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LOW_PROFILE |
-                        View.SYSTEM_UI_FLAG_FULLSCREEN |
-                        View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
-                        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
-                        View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
-
-        netflixWebView.setWebViewClient(new WebViewClient() {
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                // Block external app redirects
-                if (url.startsWith("intent://") ||
-                        url.startsWith("market://") ||
-                        url.startsWith("netflix://")) {
-                    return true;
-                }
-
-                /* 
-                // HYBRID HANDOFF DISABLED: Trailers are working in main WebView!
-                if (url.contains("netflix.com/watch/") || url.contains("netflix.com/watch?")) {
-                    launchVideoPlayer(url);
-                    return true;
-                }
-                */
-
-                return false;
-            }
-
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-
-                // Hide splash after page loads
-                netflixWebView.postDelayed(() -> {
-                    if (splashOverlay != null) {
-                        splashOverlay.setVisibility(View.GONE);
-                    }
-                }, 3000);
-
-                injectCustomAssets();
-            }
-        });
-
-        CookieManager.getInstance().setAcceptCookie(true);
-        CookieManager.getInstance().setAcceptThirdPartyCookies(netflixWebView, true);
+        }
+        
+        // Permission is granted. Start the ghost orientation locker!
+        startGhostLauncher();
     }
 
-    /**
-     * The "Deep Link Handoff" Architecture.
-     * Bypasses the Web DRM entirely by sending the movie URL directly to the official Netflix app.
-     */
-    private void launchVideoPlayer(String url) {
-        try {
-            android.util.Log.d("NetflixBridge", "Handing off playback to Native Netflix App: " + url);
-            
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setData(android.net.Uri.parse(url));
-            
-            // Force the intent to open the official Netflix Mobile App
-            intent.setPackage("com.netflix.mediaclient"); 
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            
-            startActivity(intent);
-            
-        } catch (Exception e) {
-            android.util.Log.e("NetflixBridge", "Native Netflix app not installed!", e);
-            // Fallback to Chrome Custom Tabs if the native app isn't installed
-            try {
-                androidx.browser.customtabs.CustomTabsIntent.Builder builder = new androidx.browser.customtabs.CustomTabsIntent.Builder();
-                builder.setShowTitle(false);
-                builder.setUrlBarHidingEnabled(true);
-                builder.build().launchUrl(this, android.net.Uri.parse(url));
-            } catch (Exception ex) {
-                // Final fallback
-                startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)));
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == OVERLAY_PERMISSION_REQ_CODE) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (Settings.canDrawOverlays(this)) {
+                    startGhostLauncher();
+                } else {
+                    Toast.makeText(this, "Permission denied. Cannot force Landscape.", Toast.LENGTH_SHORT).show();
+                    finish(); // Kill our app if permission denied
+                }
             }
+        } else {
+            super.onActivityResult(requestCode, resultCode, data);
         }
     }
 
-    private void injectCustomAssets() {
+    private void startGhostLauncher() {
+        // 1. Start the invisible Horizontal Overlay Service
+        Intent serviceIntent = new Intent(this, OrientationService.class);
+        startService(serviceIntent);
+
+        // 2. Launch the official Netflix Mobile app
         try {
-            // Inject CSS (cinematic styles)
-            java.io.InputStream cssInput = getAssets().open("netflix_tv.css");
-            byte[] cssBuffer = new byte[cssInput.available()];
-            cssInput.read(cssBuffer);
-            cssInput.close();
-            String cssEncoded = android.util.Base64.encodeToString(cssBuffer, android.util.Base64.NO_WRAP);
-            netflixWebView.evaluateJavascript(
-                    "var style = document.createElement('style');" +
-                            "style.innerHTML = window.atob('" + cssEncoded + "');" +
-                            "document.head.appendChild(style);",
-                    null);
-
-            // Inject JS (overlay hiding + pushState intercept)
-            java.io.InputStream jsInput = getAssets().open("netflix_tv.js");
-            byte[] jsBuffer = new byte[jsInput.available()];
-            jsInput.read(jsBuffer);
-            jsInput.close();
-            netflixWebView.evaluateJavascript(new String(jsBuffer), null);
-
+            Intent netflixIntent = getPackageManager().getLaunchIntentForPackage("com.netflix.mediaclient");
+            if (netflixIntent != null) {
+                netflixIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(netflixIntent);
+            } else {
+                Toast.makeText(this, "Official Netflix App is not installed!", Toast.LENGTH_LONG).show();
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
 
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        switch (keyCode) {
-            case KeyEvent.KEYCODE_BACK:
-                if (netflixWebView.canGoBack()) {
-                    netflixWebView.goBack();
-                    return true;
-                }
-                break;
-        }
-        return super.onKeyDown(keyCode, event);
-    }
-
-    /**
-     * JavaScript Bridge: This is called from our netflix_tv.js
-     * when it detects a /watch/ URL navigation.
-     */
-    public class NetflixBridge {
-        @android.webkit.JavascriptInterface
-        public void playVideo(final String url) {
-            runOnUiThread(() -> {
-                String fullUrl = url;
-                if (url != null && !url.startsWith("http")) {
-                    if (url.startsWith("/")) fullUrl = "https://www.netflix.com" + url;
-                    else fullUrl = "https://www.netflix.com/" + url;
-                }
-                android.util.Log.d("NetflixBridge", "Launching VideoActivity with: " + fullUrl);
-                launchVideoPlayer(fullUrl);
-            });
-        }
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        netflixWebView.onResume();
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        netflixWebView.onPause();
+        // 3. Immediately close our wrapper app so the user never sees it again
+        finish();
     }
 }
