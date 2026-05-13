@@ -15,7 +15,7 @@ public class MainActivity extends AppCompatActivity {
     private WebView netflixWebView;
     private View splashOverlay;
     private static final String NETFLIX_URL = "https://www.netflix.com";
-    private static final String TV_USER_AGENT = "Mozilla/5.0 (Linux; Android 8.0.0; Sony Bravia 4K 2018 Build/OPR2.170623.027) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36";
+    private static final String TV_USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

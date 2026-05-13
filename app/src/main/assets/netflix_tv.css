@@ -82,7 +82,9 @@ body {
 .akira-header,
 .update-required-overlay,
 .leaving-so-soon,
-.sign-out-container {
+.sign-out-container,
+.modal-open-app,
+.open-app-container {
     display: none !important;
     visibility: hidden !important;
     pointer-events: none !important;
