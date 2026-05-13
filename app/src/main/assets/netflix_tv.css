@@ -1,0 +1,99 @@
+/* Hide standard web headers/footers */
+.pinning-header, .footer-section, .member-footer, .secondary-navigation, .account-menu-item {
+    display: none !important;
+}
+
+/* Base Body Background */
+body {
+    background-color: #000 !important;
+    color: #fff !important;
+    overflow-x: hidden !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+/* TV-Optimized Tile Sizing & Spacing */
+.slider-item {
+    padding: 0 1.5vw !important;
+    transform-origin: center center !important;
+}
+
+.boxshot-container {
+    border-radius: 4px !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
+}
+
+/* Signature Focus State: 1.1x Scale + Red Glow */
+.slider-item:focus, .slider-item.focused {
+    outline: none !important;
+    z-index: 1000 !important;
+}
+
+.slider-item:focus .boxshot-container, 
+.slider-item.focused .boxshot-container {
+    transform: scale(1.15) !important;
+    border: 4px solid #E50914 !important;
+    box-shadow: 0 0 30px rgba(229, 9, 20, 0.9) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Hero Section (Billboard) - Cinematic Immersion */
+.billboard-row {
+    margin-bottom: 20px !important;
+}
+
+.billboard-title {
+    font-size: 5vw !important;
+    text-transform: uppercase !important;
+    letter-spacing: -1px !important;
+}
+
+.billboard-links .playLink {
+    padding: 1rem 2.5rem !important;
+    font-size: 1.2rem !important;
+    font-weight: 800 !important;
+    background-color: #fff !important;
+    color: #000 !important;
+}
+
+.billboard-links .playLink:focus {
+    background-color: #E50914 !important;
+    color: #fff !important;
+    transform: scale(1.05) !important;
+}
+
+/* Custom Glassmorphic Navigation Bar Overlay */
+#custom-tv-nav {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    height: 80px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(50px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    padding: 0 4rem;
+}
+
+/* Force Hide 'Update Required' and 'Unsupported' messages */
+.message-container, 
+.unsupported-browser, 
+[role="alert"], 
+.akira-header,
+.update-required-overlay,
+.leaving-so-soon,
+.sign-out-container {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* Ensure the main content is always visible */
+#appMountPoint {
+    display: block !important;
+}
+
+/* Scrollbar Hiding */
+::-webkit-scrollbar {
+    display: none !important;
+}
