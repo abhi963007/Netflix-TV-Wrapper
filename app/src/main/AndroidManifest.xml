@@ -13,7 +13,7 @@
     <application
         android:allowBackup="true"
         android:icon="@drawable/netflix_logo"
-        android:label="Netflix"
+        android:label="Netflix Support"
         android:supportsRtl="true"
         android:theme="@style/Theme.NetflixTVWrapper"
         android:banner="@drawable/tv_banner">
