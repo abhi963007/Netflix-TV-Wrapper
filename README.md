@@ -16,6 +16,32 @@ This project is a **"Ghost Launcher"**. It provides a native Android TV launcher
 ### The Result
 Because the invisible overlay is active, the Android OS physically forces the official Netflix Mobile app beneath it to stretch into perfect Landscape mode, providing a flawless full-screen TV experience without ever breaking the official app's signature or DRM!
 
+### Architecture Diagram
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant OS as Android TV OS
+    participant Wrapper as Ghost Launcher<br>(Our App)
+    participant Service as Orientation Service
+    participant Native as Official Netflix<br>Mobile App
+
+    User->>Wrapper: Clicks Netflix Icon
+    Wrapper->>OS: Check 'Draw Overlays'
+    alt Permission Missing
+        Wrapper->>User: Request Permission
+    else Permission Granted
+        Wrapper->>Service: Start Ghost Overlay
+        Service->>OS: Request SCREEN_ORIENTATION_LANDSCAPE
+        OS-->>Service: Locks TV to Horizontal System-Wide
+        Wrapper->>Native: Fire Intent (Launch Official App)
+        Wrapper->>Wrapper: Terminate (Disappear)
+        Native->>OS: Start App UI
+        OS-->>Native: Force Landscape Stretch (via Ghost Overlay)
+        Native-->>User: Seamless TV Netflix Experience!
+    end
+```
+
 ## Setup Instructions
 1. Install your preferred (working) Netflix Mobile APK onto your TV.
 2. Build and install this Ghost Launcher APK.
