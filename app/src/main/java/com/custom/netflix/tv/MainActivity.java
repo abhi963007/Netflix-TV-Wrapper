@@ -144,20 +144,30 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Launches VideoActivity with the /watch/ URL and current session cookies.
-     * VideoActivity uses the device's native UA so Widevine DRM works properly.
+     * Launches the official Chrome Browser engine (Custom Tabs) to play the video.
+     * This bypasses the Android WebView DRM block because Chrome is fully authorized by Netflix.
      */
     private void launchVideoPlayer(String url) {
-        // Flush cookies to disk first
-        CookieManager.getInstance().flush();
-
-        // Get session cookies to pass to VideoActivity
-        String cookies = CookieManager.getInstance().getCookie("https://www.netflix.com");
-
-        Intent intent = new Intent(this, VideoActivity.class);
-        intent.putExtra(VideoActivity.EXTRA_URL, url);
-        intent.putExtra(VideoActivity.EXTRA_COOKIES, cookies);
-        startActivity(intent);
+        try {
+            android.util.Log.d("NetflixBridge", "Launching Chrome Custom Tab for: " + url);
+            
+            androidx.browser.customtabs.CustomTabsIntent.Builder builder = new androidx.browser.customtabs.CustomTabsIntent.Builder();
+            
+            // Configure UI to look as "app-like" as possible
+            builder.setShowTitle(false);
+            builder.setUrlBarHidingEnabled(true);
+            
+            androidx.browser.customtabs.CustomTabsIntent customTabsIntent = builder.build();
+            
+            // Launch the video seamlessly
+            customTabsIntent.launchUrl(this, android.net.Uri.parse(url));
+            
+        } catch (Exception e) {
+            android.util.Log.e("NetflixBridge", "CCT Failed, falling back to standard browser", e);
+            // Fallback just in case Chrome isn't the default handler
+            Intent browserIntent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url));
+            startActivity(browserIntent);
+        }
     }
 
     private void injectCustomAssets() {
