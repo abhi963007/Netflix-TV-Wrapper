@@ -52,11 +52,44 @@ public class MainActivity extends AppCompatActivity {
 
         netflixWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
-        // Grant preview/trailer DRM permissions (full DRM handled in VideoActivity)
+        // Support for Fullscreen Video Playback
         netflixWebView.setWebChromeClient(new android.webkit.WebChromeClient() {
+            private View customView;
+            private CustomViewCallback customViewCallback;
+
             @Override
             public void onPermissionRequest(final android.webkit.PermissionRequest request) {
                 request.grant(request.getResources());
+            }
+
+            @Override
+            public void onShowCustomView(View view, CustomViewCallback callback) {
+                if (customView != null) {
+                    onHideCustomView();
+                    return;
+                }
+                customView = view;
+                customViewCallback = callback;
+                
+                // Hide the main webview and show the video view
+                netflixWebView.setVisibility(View.GONE);
+                ((android.view.ViewGroup) netflixWebView.getParent()).addView(customView);
+                
+                // Set immersive fullscreen for the video
+                customView.setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+            }
+
+            @Override
+            public void onHideCustomView() {
+                if (customView == null) return;
+                
+                // Remove the video view and show the webview again
+                ((android.view.ViewGroup) netflixWebView.getParent()).removeView(customView);
+                customView = null;
+                netflixWebView.setVisibility(View.VISIBLE);
+                customViewCallback.onCustomViewHidden();
             }
         });
 
